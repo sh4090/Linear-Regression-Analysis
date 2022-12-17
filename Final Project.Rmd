@@ -1,0 +1,411 @@
+---
+title: "Apendix A"
+author: "Sara Hassani"
+date: "16/12/2022"
+output: html_document
+---
+
+```{r, include = FALSE}
+library(tidyverse)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+```
+
+### Description of Data
+#### Uploading and Cleaning Data
+
+```{r, size = "footnotesize"}
+# School Demographics Report
+DEMOGRAPHICS_REPORT<-read.csv("2006_-_2012_School_Demographics_and_Accountability_Snapshot.csv") %>%
+  filter (schoolyear == 20102011)
+
+# School Progress Report
+PROGRESS_REPORT<-read.csv("2011-2012_High_School_Progress_Report.csv")
+progress<-read.csv("2010_-_2011_School_Progress_Report.csv") %>%
+  filter(SCHOOL.LEVEL. == "High School")
+PROGRESS_REPORT<-merge(PROGRESS_REPORT,progress, by="DBN")
+
+# School Survey results
+SURVEY<-read.csv("masterfile11_gened_final.csv")
+colnames(SURVEY)<-c('DBN',SURVEY[2,-1])
+SURVEY<-SURVEY[-c(1,2),]
+SURVEY[,3:50]<-as.data.frame(lapply(SURVEY[,3:50],function(x)as.numeric(x)))
+    # calculating average score per school
+SURVEY$parent_cliamte <- (SURVEY$aca_p_11 + SURVEY$com_p_11 + SURVEY$eng_p_11 + SURVEY$saf_p_11)/4
+SURVEY$teacher_cliamte <- (SURVEY$aca_t_11 + SURVEY$com_t_11 + SURVEY$eng_t_11 + SURVEY$saf_t_11)/4
+SURVEY$student_cliamte <- (SURVEY$aca_s_11 + SURVEY$com_s_11 + SURVEY$eng_s_11 + SURVEY$saf_s_11)/4
+
+# High School Selectivity
+HS_SELECTIVITY<-read.csv("2015-2016_Demographic_Data_-_Admissions_Methods.csv")
+
+# Master Data set
+MASTER<-merge(DEMOGRAPHICS_REPORT, SURVEY, by="DBN") %>%
+  merge(.,PROGRESS_REPORT, by="DBN") %>%
+  merge(., HS_SELECTIVITY, by="DBN")
+
+# Isolating Variables of Interest, but only variables with numeric values
+VARIABLES_num<-VARIABLES<-data.frame(hs_academic_progress = MASTER$X2010.2011.PROGRESS.CATEGORY.SCORE,
+            parent_school_climate = MASTER$parent_cliamte,
+            teacher_school_climate = MASTER$teacher_cliamte,
+            student_school_climate = MASTER$student_cliamte,
+            free_reduced_lunch = MASTER$frl_percent,
+            total_enrollment = MASTER$total_enrollment,
+            english_language_learners = MASTER$ell_percent,
+            sped_students = MASTER$sped_percent,
+            black_hispanic_students = MASTER$black_per + MASTER$hispanic_per,
+            male_students = MASTER$male_per,
+            eighth_grade_maths = MASTER$X8th.Gr.Math.ELA,
+            parents_academic_expectations = as.numeric(MASTER$aca_p_11),
+            parents_communication = as.numeric(MASTER$com_p_11),
+            parents_engagement = as.numeric(MASTER$eng_p_11),
+            parents_safety_and_respect = as.numeric(MASTER$saf_p_11),
+            teachers_academic_expectations = as.numeric(MASTER$aca_t_11),
+            teachers_communication = as.numeric(MASTER$com_t_11),
+            teachers_engagement = as.numeric(MASTER$eng_t_11),
+            teachers_safety_and_respect = as.numeric(MASTER$saf_t_11),
+            students_academic_expectations = as.numeric(MASTER$aca_s_11),
+            students_communication = as.numeric(MASTER$com_s_11),
+            students_engagement = as.numeric(MASTER$eng_s_11),
+            students_safety_and_respect = as.numeric(MASTER$saf_s_11))
+
+VARIABLES_num<-as.data.frame(lapply(VARIABLES_num, function(x)as.numeric(x)))
+VARIABLES_num<-na.omit(VARIABLES_num)
+
+# Isolating Variables of Interest
+VARIABLES<-data.frame(dbn = MASTER$DBN,
+            hs_academic_progress = MASTER$X2010.2011.PROGRESS.CATEGORY.SCORE,
+            parent_school_climate = MASTER$parent_cliamte,
+            teacher_school_climate = MASTER$teacher_cliamte,
+            student_school_climate = MASTER$student_cliamte,
+            free_reduced_lunch = MASTER$frl_percent,
+            total_enrollment = MASTER$total_enrollment,
+            english_language_learners = MASTER$ell_percent,
+            sped_students = MASTER$sped_percent,
+            black_hispanic_students = MASTER$black_per + MASTER$hispanic_per,
+            male_students = MASTER$male_per,
+            eighth_grade_maths = MASTER$X8th.Gr.Math.ELA,
+            hs_selectivity = MASTER$Admissions.Methods,
+            parents_academic_expectations = as.numeric(MASTER$aca_p_11),
+            parents_communication = as.numeric(MASTER$com_p_11),
+            parents_engagement = as.numeric(MASTER$eng_p_11),
+            parents_safety_and_respect = as.numeric(MASTER$saf_p_11),
+            teachers_academic_expectations = as.numeric(MASTER$aca_t_11),
+            teachers_communication = as.numeric(MASTER$com_t_11),
+            teachers_engagement = as.numeric(MASTER$eng_t_11),
+            teachers_safety_and_respect = as.numeric(MASTER$saf_t_11),
+            students_academic_expectations = as.numeric(MASTER$aca_s_11),
+            students_communication = as.numeric(MASTER$com_s_11),
+            students_engagement = as.numeric(MASTER$eng_s_11),
+            students_safety_and_respect = as.numeric(MASTER$saf_s_11))
+
+VARIABLES<-merge(VARIABLES,VARIABLES_num)
+
+# Identifying Selectivity categories
+for(i in 1:nrow(VARIABLES)){
+  if(grepl("HS: Audition", VARIABLES$hs_selectivity[i])){VARIABLES$hs_selectivity[i]<-"Audition/Test"
+  }else{
+    if(grepl("HS: Test", VARIABLES$hs_selectivity[i])){VARIABLES$hs_selectivity[i]<-"Audition/Test"
+    }else{
+      if(grepl("HS: Screened", VARIABLES$hs_selectivity[i])){VARIABLES$hs_selectivity[i]<-"Screened"
+      }else{
+      if(grepl("HS: Ed. Opt., Limited Unscreened, Screened", VARIABLES$hs_selectivity[i])){VARIABLES$hs_selectivity[i]<-"Screened"
+      }else{
+        if(grepl("HS: Ed. Opt., Screened", VARIABLES$hs_selectivity[i])){VARIABLES$hs_selectivity[i]<-"Screened"
+        }else{VARIABLES$hs_selectivity[i]<-"non-selective"}
+      }
+      }
+    }
+  }
+}
+VARIABLES$hs_selectivity<-as.factor(VARIABLES$hs_selectivity)
+```
+
+I am not sure how the paper gets 263 schools in their sample. They say that the initial sample was 371 high schools but 108 were too new to have progress report scores. But I have used the same data that the two authors have used and omitted all schools with missing values and end up with 307 schools.
+
+#### Recreating Descriptive Statistics
+
+```{r, size = "footnotesize"}
+N<-rep(nrow(VARIABLES),ncol(VARIABLES_num))
+Median<-sapply(VARIABLES_num, function(x)median(x))
+M<-sapply(VARIABLES_num, function(x)mean(x))
+SD<-sapply(VARIABLES_num, function(x)sd(x))
+Range<-sapply(VARIABLES_num, function(x)(max(x)-min(x)))
+
+descriptive_stats<-data.frame(N,Median,M,SD,Range)
+descriptive_stats
+
+descr::freq(ordered(VARIABLES$hs_selectivity), plot = F)
+```
+
+#### Visualizing Key Variables
+
+I will be representing only the variables that were statistically significant in the 3 models since they are used to justify the paper's conclusions.
+
+```{r, size = "footnotesize"}
+# Academic Progress Score
+ggplot(VARIABLES,aes(hs_academic_progress,fill=hs_selectivity))+geom_boxplot()+labs(title="HS Academic Progress Score by HS Selectivity Type")
+
+# School Climate
+    # For Parents
+ggplot(VARIABLES,aes(parent_school_climate,fill=hs_selectivity))+geom_boxplot()+labs(title="Parent School Climate Survey Score by HS Selectivity Type")
+ggplot(VARIABLES)+geom_point(mapping=aes(x=parent_school_climate,y=hs_academic_progress,col=hs_selectivity))+labs(title="HS Academic Progress plot against Parent School Climate Survey Score")
+
+    # For Teachers
+ggplot(VARIABLES,aes(teacher_school_climate,fill=hs_selectivity))+geom_boxplot()+labs(title="Teacher School Climate Survey Score by HS Selectivity Type")
+ggplot(VARIABLES)+geom_point(mapping=aes(x=teacher_school_climate,y=hs_academic_progress,col=hs_selectivity))+labs(title="HS Academic Progress plot against Teacher School Climate Survey Score")
+
+# Statistically Significant Background Variables from the Paper
+    # Total Enrollment
+hist(VARIABLES$total_enrollment, main="Distribution of Total Enrollment Numbers in High Schools")
+ggplot(VARIABLES,aes(total_enrollment,fill=hs_selectivity))+geom_boxplot()+labs(title="Total Enrollment by HS Selectivity Type")
+ggplot(VARIABLES)+geom_point(mapping=aes(x=total_enrollment,y=hs_academic_progress,col=hs_selectivity))+labs(title="HS Academic Progress plot against Total Enrollment in High Schools")
+
+    # Free and Reduced Lunch
+ggplot(VARIABLES,aes(free_reduced_lunch,fill=hs_selectivity))+geom_boxplot()+labs(title="Lunch Program eligibility by HS Selectivity Type")
+ggplot(VARIABLES)+geom_point(mapping=aes(x=free_reduced_lunch,y=hs_academic_progress,col=hs_selectivity))+labs(title="HS Academic Progress plot against Percentage of Students eligible for Lunch Program")
+
+```
+
+The ideal dataset would be disaggregated data point that would make the unit of analysis at the student level, rather than the school level. This means that the school climate measure would be based on that student's teachers specifically and their own parents. It would also give us information of their own eligibility to lunch programs, their own maths scores ... Instead, we only have access to data at the school level. This makes it harder to explain trends at the student level, which is the desired outcome as per the paper's research question. Reliance on school average may water down certain effects 
+
+### Reproducing results
+
+```{r, size = "footnotesize"}
+VARIABLES$hs_selectivity<- relevel(VARIABLES$hs_selectivity, ref = "non-selective")
+
+variables_cor<-VARIABLES %>%
+  mutate(counts = 1) %>%
+  spread(hs_selectivity, counts, fill = 0)
+variables_cor<-variables_cor[,-24]
+
+# Correlation Matrix
+cor(variables_cor, use = "complete.obs")
+
+# Model 1
+mod1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=VARIABLES)
+summary(mod1)
+
+# Model 2
+mod2<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=VARIABLES)
+summary(mod2)
+
+# Model 3
+mod3<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate + eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=VARIABLES)
+summary(mod3)
+
+# Model 4
+mod4<-lm(hs_academic_progress ~ students_academic_expectations + students_communication + students_engagement + students_safety_and_respect + teachers_academic_expectations + teachers_communication + teachers_engagement + teachers_safety_and_respect + parents_academic_expectations + parents_communication + parents_engagement + parents_safety_and_respect, data=VARIABLES)
+summary(mod4)
+```
+
+I am unable to reproduce the exact results of the paper since I couldn't find the same exact sample used by the authors. However, the overall result is still consistent: climate explains more than background. However, significance levels of the coefficient estimates for the different variables.
+
+### Evaluating the result
+#### Comparing model 1 and model 2 using k-fold cross validation 
+```{r}
+k <- 10
+n <-nrow(VARIABLES)
+folds <- sample(k, n, replace=TRUE)
+
+i <- 1
+metrics <- matrix(NA, ncol=2, nrow=k)
+for(i in seq_len(k)){
+    is_train <- folds != i
+    is_test <- !is_train
+    train_df <- VARIABLES[is_train, ]
+    test_df <- VARIABLES[is_test, ]
+    mod1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=train_df)
+    mod2<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=train_df)
+    y_hat <- predict(mod1, newdata = test_df)
+    y_hat2 <- predict(mod2, newdata = test_df)
+    new_error <- (test_df$hs_academic_progress - y_hat)
+    new_error2 <- (test_df$hs_academic_progress - y_hat2)
+    metrics[i, 1] <- sqrt(mean(new_error ^2))
+    metrics[i, 2] <- sqrt(mean(new_error2 ^2))
+}
+plot(density(metrics[,1]), main="Prediction Error of Model 1 and Model 2 with mean errors")
+points(density(metrics[,2]), col='red')
+abline(v = mean(metrics[,1]))
+abline(v = mean(metrics[,2]), col='red')
+legend(x="topright", legend=c("Model 1", "Model 2"), col=c("black", "red"), lty=1)
+
+mean(metrics[,1])
+mean(metrics[,2])
+```
+
+#### Focusing on non-selective schools
+```{r}
+VARIABLES_non_selective<-VARIABLES[VARIABLES$hs_selectivity=="non-selective",]
+
+# new models where hs_selectivity is not a variable
+mod1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=VARIABLES_non_selective)
+mod2<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment , data=VARIABLES_non_selective)
+
+summary(mod1)
+summary(mod2)
+
+# k-fold cross validation
+k <- 30
+n <-nrow(VARIABLES_non_selective)
+folds <- sample(k, n, replace=TRUE)
+
+i <- 1
+metrics <- matrix(NA, ncol=2, nrow=k)
+for(i in seq_len(k)){
+    is_train <- folds != i
+    is_test <- !is_train
+    train_df <- VARIABLES_non_selective[is_train, ]
+    test_df <- VARIABLES_non_selective[is_test, ]
+    mod1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=train_df)
+    mod2<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment , data=train_df)
+    y_hat <- predict(mod1, newdata = test_df)
+    y_hat2 <- predict(mod2, newdata = test_df)
+    new_error <- (test_df$hs_academic_progress - y_hat)
+    new_error2 <- (test_df$hs_academic_progress - y_hat2)
+    metrics[i, 1] <- sqrt(mean(new_error ^2))
+    metrics[i, 2] <- sqrt(mean(new_error2 ^2))
+}
+plot(density(metrics[,1]), main="Prediction Error of Model 1 and Model 2 with mean errors for non-selective HS")
+points(density(metrics[,2]), col='red')
+abline(v = mean(metrics[,1]))
+abline(v = mean(metrics[,2]), col='red')
+legend(x="topright", legend=c("Model 1", "Model 2"), col=c("black", "red"), lty=1)
+
+mean(metrics[,1])
+mean(metrics[,2])
+```
+
+### Focusing on specific borough
+```{r}
+BRONX<-data.frame()
+MANHATTAN<-data.frame()
+
+# Identifying borough specific schools
+for(i in 1:nrow(VARIABLES)){
+  if(grepl("X",VARIABLES$dbn[i])){BRONX<-as.data.frame(rbind(BRONX,VARIABLES[i,]))}
+  if(grepl("M",VARIABLES$dbn[i])){MANHATTAN<-as.data.frame(rbind(MANHATTAN,VARIABLES[i,]))}
+}
+
+# Bronx Focus
+mod1_X<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=BRONX)
+mod2_X<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=BRONX)
+
+summary(mod1_X)
+summary(mod2_X)
+
+# Manhattan Focus
+mod1_M<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=MANHATTAN)
+mod2_M<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=MANHATTAN)
+
+summary(mod1_M)
+summary(mod2_M)
+
+# k-fold cross validation for BRONX
+k <- 10
+n <-nrow(BRONX)
+folds <- sample(k, n, replace=TRUE)
+
+i <- 1
+metrics <- matrix(NA, ncol=2, nrow=k)
+for(i in seq_len(k)){
+    is_train <- folds != i
+    is_test <- !is_train
+    train_df <- BRONX[is_train, ]
+    test_df <- BRONX[is_test, ]
+    mod1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=train_df)
+    mod2<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=train_df)
+    y_hat <- predict(mod1, newdata = test_df)
+    y_hat2 <- predict(mod2, newdata = test_df)
+    new_error <- (test_df$hs_academic_progress - y_hat)
+    new_error2 <- (test_df$hs_academic_progress - y_hat2)
+    metrics[i, 1] <- sqrt(mean(new_error ^2))
+    metrics[i, 2] <- sqrt(mean(new_error2 ^2))
+}
+plot(density(metrics[,1]), main="Prediction Error of Model 1 and Model 2 with mean errors for BRONX High Schools")
+points(density(metrics[,2]), col='red')
+abline(v = mean(metrics[,1]))
+abline(v = mean(metrics[,2]), col='red')
+legend(x="topright", legend=c("Model 1", "Model 2"), col=c("black", "red"), lty=1)
+
+mean(metrics[,1])
+mean(metrics[,2])
+
+# k-fold cross validation for MANHATTAN
+k <- 10
+n <-nrow(MANHATTAN)
+folds <- sample(k, n, replace=TRUE)
+
+i <- 1
+metrics <- matrix(NA, ncol=2, nrow=k)
+for(i in seq_len(k)){
+    is_train <- folds != i
+    is_test <- !is_train
+    train_df <- MANHATTAN[is_train, ]
+    test_df <- MANHATTAN[is_test, ]
+    mod1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=train_df)
+    mod2<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=train_df)
+    y_hat <- predict(mod1, newdata = test_df)
+    y_hat2 <- predict(mod2, newdata = test_df)
+    new_error <- (test_df$hs_academic_progress - y_hat)
+    new_error2 <- (test_df$hs_academic_progress - y_hat2)
+    metrics[i, 1] <- sqrt(mean(new_error ^2))
+    metrics[i, 2] <- sqrt(mean(new_error2 ^2))
+}
+plot(density(metrics[,1]), main="Prediction Error of Model 1 and Model 2 with mean errors for MANHATTAN High Schools")
+points(density(metrics[,2]), col='red')
+abline(v = mean(metrics[,1]))
+abline(v = mean(metrics[,2]), col='red')
+legend(x="topright", legend=c("Model 1", "Model 2"), col=c("black", "red"), lty=1)
+
+mean(metrics[,1])
+mean(metrics[,2])
+
+
+```
+
+### Adding Interactions
+```{r}
+mod_1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=VARIABLES)
+new_mod_2<-lm(hs_academic_progress ~ free_reduced_lunch + male_students + english_language_learners + english_language_learners*black_hispanic_students + sped_students + sped_students*eighth_grade_maths + free_reduced_lunch*black_hispanic_students + black_hispanic_students + total_enrollment + hs_selectivity + hs_selectivity*eighth_grade_maths, data=VARIABLES)
+
+summary(mod_1)
+summary(new_mod_2)
+
+# Comparing models using prediction error
+k <- 10
+n <-nrow(VARIABLES)
+folds <- sample(k, n, replace=TRUE)
+
+i <- 1
+metrics <- matrix(NA, ncol=2, nrow=k)
+for(i in seq_len(k)){
+    is_train <- folds != i
+    is_test <- !is_train
+    train_df <- VARIABLES[is_train, ]
+    test_df <- VARIABLES[is_test, ]
+    mod1<-lm(hs_academic_progress ~ student_school_climate + parent_school_climate + teacher_school_climate , data=train_df)
+    mod2<-lm(hs_academic_progress ~ free_reduced_lunch + male_students + english_language_learners + english_language_learners*black_hispanic_students + sped_students + sped_students*eighth_grade_maths + free_reduced_lunch*black_hispanic_students + black_hispanic_students + total_enrollment + hs_selectivity + hs_selectivity*eighth_grade_maths, data=train_df)
+    y_hat <- predict(mod1, newdata = test_df)
+    y_hat2 <- predict(mod2, newdata = test_df)
+    new_error <- (test_df$hs_academic_progress - y_hat)
+    new_error2 <- (test_df$hs_academic_progress - y_hat2)
+    metrics[i, 1] <- sqrt(mean(new_error ^2))
+    metrics[i, 2] <- sqrt(mean(new_error2 ^2))
+}
+plot(density(metrics[,1]), main="Prediction Error of Model 1 and Model 2 with interactions")
+points(density(metrics[,2]), col='red')
+abline(v = mean(metrics[,1]))
+abline(v = mean(metrics[,2]), col='red')
+legend(x="topright", legend=c("Model 1", "Model 2"), col=c("black", "red"), lty=1)
+
+mean(metrics[,1])
+mean(metrics[,2])
+
+# Did the interaction help in any way?
+og_mod2<-lm(hs_academic_progress ~ eighth_grade_maths + free_reduced_lunch + male_students + english_language_learners + sped_students + black_hispanic_students + total_enrollment + hs_selectivity, data=VARIABLES)
+
+anova(og_mod2,new_mod_2)
+
+```
+
