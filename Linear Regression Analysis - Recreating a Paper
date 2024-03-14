@@ -1,9 +1,8 @@
----
-title: "Apendix A"
-author: "Sara Hassani"
-date: "16/12/2022"
-output: html_document
----
+
+# Recreating “Schools Matter: The Positive Relationship Between New York City High Schools’ Student Academic Progress and School Climate”
+
+Access the full analysis based on the results from this code, as well as the full datasets used in the Google Drive I created:
+    https://drive.google.com/drive/u/5/folders/1cAP2MPpCaPfeZ6JySFYbWdf0Ie74_zJA
 
 ```{r, include = FALSE}
 library(tidyverse)
