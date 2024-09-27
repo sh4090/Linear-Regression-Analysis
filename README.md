@@ -49,13 +49,17 @@ I have reproduced all results mentioned in the paper throught the following stat
 - Model 4: Regression of High School Academic Progress against components of School Climate variables for parents, teachers, and students.
 
 I zone in on models 1 and 2, as the focus of the analysis, and conduct k-fold cross validation to compare them.
+
 ![image](https://github.com/user-attachments/assets/d92b1d5e-d1f7-4a87-ba6f-5cb75b189d7e)
 
 I then introduce modification to attempt and reduce prediction error. I segment the data by high school borough, using the Bronx and Manhattan as examples:
+
 ![image](https://github.com/user-attachments/assets/54f0c6b6-602b-4c0b-a485-e21ec470f947)
+
 ![image](https://github.com/user-attachments/assets/b5057fd2-53dd-42e5-b5ff-b284df784dbc)
 
 I also introduce interactions to model 2 and compare it once again to model 1.
+
 ![image](https://github.com/user-attachments/assets/88e67293-ad94-4a62-ac46-89e1b94318ca)
 
 ## Conclusion
